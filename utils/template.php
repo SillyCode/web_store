@@ -11,7 +11,9 @@ class template {
 	public function render() {
 		$filename = __DIR__ . '/../templates/' . $this->__filename;
 		if(file_exists($filename)) {
-			echo translate_block::render(array($this->__properties), @file_get_contents($filename));
+			echo translate_block::render($this->__properties, @file_get_contents($filename));
+		} else {
+			throw new Exception($this->__filename . ' does not exist');
 		}
 	}
 
@@ -42,68 +44,76 @@ class translate_block {
 
 	public static function render($stack, $content) {
 		$code_block = new translate_block($stack);
-		$regex = '/\{([^\s}]+)\s*([^\s}]+)\}\s*(.*)[\t\n\r]*\{\/\1\s+\2\}/ms'; //NOTE: might revise this regex
-		$callback = array($code_block, 'expand');
-		return $code_block->resolve($code_block->find_method(preg_replace_callback($regex, $callback, $content)));
-// 		var_dump($context);
-// 		var_dump($stack);
+		$arranged_data = $code_block->arrange_code($content);
+		$resolved_data = $code_block->resolve($arranged_data, $stack);
+		$content = $code_block->replace_contents($content, $resolved_data);
+		return $content;
 	}
 
-	private function resolve($body) {
-// 		var_dump($body);
-	}
-
-	private function find_method($body) {
-		$regex = '/\{([^\s}]+)\s+([^}]+)\}/';
-// 		var_Dump($body);
-		$callback = array($this, 'exec_method');
-		return preg_replace_callback($regex, $callback, $body);
-	}
-
-	private function exec_method($match) {;
-// 	var_dump($match);
-		list(, $method, $params) = $match;
-		$method = 'expand_' . $method;
-// 		var_Dump($method);
-		if($method != __FUNCTION__ && method_exists($this, $method)) {
-			return $this->$method($params);
+	private function resolve($data_companent, $stack) {
+		foreach($data_companent as $operation => $companent) {
+			switch($operation) {
+				case "loop":
+					$data_companent[$operation .' '. $companent->variable] = $this->parse_loop($companent->html, empty($stack[$companent->variable])?"": $stack[$companent->variable]);
+				break;
+				case "if":
+					$data_companent[$operation .' '. $companent->variable] = $this->parse_if($companent->html, empty($stack[$companent->variable]) ? "": $stack[$companent->variable]);
+				break;
+			}
+			unset($data_companent[$operation]);
 		}
-		return null;
+		return $data_companent;
 	}
 
-	private function expand($match) {
-// 		var_dump($match);
-		list(, $method, $params, $body) = $match;
-// 		var_dump($method, $params);
-// 		var_dump($method);
-		$method = 'parse_' . $method;
-		if($method != __FUNCTION__ && method_exists($this, $method)) {
-			return $this->$method($params, $params, $body);
+	private function arrange_code($content) {
+		$arranged_data = array();
+		//TODO: revise the regex to allow nested loops and complex if statements
+		$regex = '/\{([^\s}]+)\s*([^\s}]+)\}\s*(.*)[\t\n\r]*\{\/\1\s+\2\}/ms';
+		if(preg_match_all($regex, $content, $match)) {
+			# $match[1] - op
+			# $match[2] - var
+			# $match[3] - content (might have more elements to parse)
+			foreach($match[1] as $index => $operation) {
+				$arranged_data[$operation] = (object) array("variable" => $match[2][$index],
+															"html" => trim($match[3][$index]));
+			}
+			return $arranged_data;
 		}
-		return null;
+		return $content;
 	}
 
-	private function parse_if($lv, $rv, $body) {
-// 		var_dump($lv, $rv, $body);
-// 		if(strlen($rv) > 0 ) {
-// 		return self::render($this->stack, $parts[0]);
-// 		}
-// 		return null;
-	}
-
-	private function parse_loop($name, $param, $body) {
-		var_Dump($name, $param, $body);
-		if($this->get_property($name, $parts)) {
-
+	private function parse_loop($html, $replacements) {
+		if(empty($replacements)) {
+			return (preg_replace('/\{([^\s]*?)\}/','',$html));
 		}
-// 		var_dump($name, $param, $body);
-// 		return null;
+		$replaced_html = "";
+		if(preg_match_all('/\{([^\s]*?)\}/', $html, $match)) {
+			# $match[1] - var
+			foreach($replacements as $replacement) {
+				foreach($match[1] as $index => $var) {
+					$html = preg_replace('/\{'.$var.'\}/',$replacement[$match[1][$index]],  $html);
+				}
+				$replaced_html .= trim($html);
+			}
+			return $replaced_html;
+		}
 	}
 
-	private function get_property($name, &$value) {
-		foreach($this->stack as $part) {
-
+	private function parse_if($html, $replacements) {
+		if(empty($replacements)) {
+			return (preg_replace('/\{([^\s]*?)\}/','',$html));
 		}
+		preg_match('/\{([^\s]*?)\}/', $html, $match);
+		# $match[1] - var
+		$html = preg_replace('/\{([^\s]*?)\}/',isset($replacements[$match[1]])?$replacements[$match[1]]:'', $html);
+		return $html;
+	}
+
+	private function replace_contents($content, $substitutes) {
+		foreach($substitutes as $var => $sub) {
+			$content = preg_replace('/\{(' .$var. ')\}\s*(.*)[\t\n\r]*\{\/\1\}/', $sub, $content);
+		}
+		return $content;
 	}
 }
 
