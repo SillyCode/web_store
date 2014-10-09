@@ -1,5 +1,7 @@
 <?php
 
+//TODO: add a single encapsulated variable translation. {content} => "This is a content";
+
 class template {
 	private $__filename;
 	private $__properties = array();
