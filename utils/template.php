@@ -1,6 +1,6 @@
 <?php
 
-//TODO: add a single encapsulated variable translation. {content} => "This is a content";
+//TODO: Test why loop of tabs is multiplied
 
 class template {
 	private $__filename;
@@ -46,9 +46,10 @@ class translate_block {
 
 	public static function render($stack, $content) {
 		$code_block = new translate_block($stack);
-		$arranged_data = $code_block->arrange_code($content);
+		$arranged_data = $code_block->parse_operations($content);
 		$resolved_data = $code_block->resolve($arranged_data, $stack);
 		$content = $code_block->replace_contents($content, $resolved_data);
+		$content = $code_block->replace_single_variables($content, $stack);
 		return $content;
 	}
 
@@ -67,7 +68,7 @@ class translate_block {
 		return $data_companent;
 	}
 
-	private function arrange_code($content) {
+	private function parse_operations($content) {
 		$arranged_data = array();
 		//TODO: revise the regex to allow nested loops and complex if statements
 		$regex = '/\{([^\s}]+)\s*([^\s}]+)\}\s*(.*)[\t\n\r]*\{\/\1\s+\2\}/ms';
@@ -106,7 +107,7 @@ class translate_block {
 			return (preg_replace('/\{([^\s]*?)\}/','',$html));
 		}
 		preg_match('/\{([^\s]*?)\}/', $html, $match);
-		# $match[1] - var
+		# $match[1] - variables
 		$html = preg_replace('/\{([^\s]*?)\}/',isset($replacements[$match[1]])?$replacements[$match[1]]:'', $html);
 		return $html;
 	}
@@ -114,6 +115,19 @@ class translate_block {
 	private function replace_contents($content, $substitutes) {
 		foreach($substitutes as $var => $sub) {
 			$content = preg_replace('/\{(' .$var. ')\}\s*(.*)[\t\n\r]*\{\/\1\}/', $sub, $content);
+		}
+		return $content;
+	}
+
+	private function replace_single_variables($content, $substitutes) {
+		preg_match_all('/\{(\w+)\}/', $content, $match);
+		# $match[0] - variables
+		foreach($match[1] as $var) {
+			if(isset($substitutes[$var])) {
+				$content = preg_replace('/\{(' .$var. ')\}/', $substitutes[$var], $content);
+			} else {
+				$content = preg_replace('/\{(' .$var. ')\}/', '', $content); //replace variables with nothing
+			}
 		}
 		return $content;
 	}
