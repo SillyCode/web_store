@@ -70,8 +70,7 @@ class translate_block {
 
 	private function parse_operations($content) {
 		$arranged_data = array();
-		//TODO: revise the regex to allow nested loops and complex if statements
-		$regex = '/\{([^\s}]+)\s*([^\s}]+)\}\s*(.*)[\t\n\r]*\{\/\1\s+\2\}/ms';
+		$regex = '/\{([^\s}]+)\s*([^\s}]+)\}\s*(.*?)[\t\n\r]*\{\/\1\s+\2\}/ms';
 		if(preg_match_all($regex, $content, $match)) {
 			# $match[1] - op
 			# $match[2] - var
