@@ -1,6 +1,7 @@
 <?php
 
-//TODO: Test why loop of tabs is multiplied
+//TODO: Allow nested loops and ifs
+// 		Allow more complex if statements
 
 class template {
 	private $__filename;
@@ -92,10 +93,15 @@ class translate_block {
 		if(preg_match_all('/\{([^\s]*?)\}/', $html, $match)) {
 			# $match[1] - var
 			foreach($replacements as $replacement) {
+				$parsed_html = $html;
 				foreach($match[1] as $index => $var) {
-					$html = preg_replace('/\{'.$var.'\}/',$replacement[$match[1][$index]],  $html);
+					if(isset($replacement[$match[1][$index]])) {
+						$parsed_html = preg_replace('/\{'.$var.'\}/',$replacement[$match[1][$index]], $parsed_html);
+					} else {
+// 						$parsed_html = preg_replace('/\{'.$var.'\}/','', $parsed_html); // replaces none existent variables with nothing
+					}
 				}
-				$replaced_html .= trim($html);
+				$replaced_html .= trim($parsed_html);
 			}
 			return $replaced_html;
 		}
