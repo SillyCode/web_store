@@ -2,6 +2,9 @@
 
 require_once('../utils/template.php');
 
+//TODO: fix cnotent redirection
+// Create tabs
+
 function tabs() {
 	$filenames = glob('*.php');
 	return array_map(function($filename) {
